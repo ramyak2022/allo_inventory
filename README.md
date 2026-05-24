@@ -3,7 +3,11 @@
 A Next.js inventory and reservation platform for multi-warehouse retail. Built with the App Router, Prisma, Postgres, Redis, and Tailwind.
 
 ---
+## Live Demo
 
+> Deploy URL goes here after Vercel deployment.
+
+■ [Click here to run live](https://ramyak2022.github.io/allo_inventory/)
 ## Stack
 
 | Layer | Choice |
