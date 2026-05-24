@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Allo Inventory – Reservation System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131c;
+      --surface2: #1c1c2a;
+      --border: #2a2a3d;
+      --accent: #6c63ff;
+      --accent2: #ff6584;
+      --green: #00e6a0;
+      --yellow: #ffd166;
+      --text: #e8e8f0;
+      --muted: #7070a0;
+      --danger: #ff4d6d;
+      --font-head: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --radius: 12px;
+      --radius-lg: 20px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid background ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(108,99,255,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108,99,255,.06) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* ── Layout ── */
+    #app { position: relative; z-index: 1; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 48px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,15,.85);
+      backdrop-filter: blur(16px);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo {
+      font-family: var(--font-head);
+      font-weight: 800; font-size: 22px;
+      letter-spacing: -0.5px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .logo-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 8px var(--accent); }
+      50% { box-shadow: 0 0 20px var(--accent); }
+    }
+
+    nav { display: flex; gap: 6px; }
+    .nav-btn {
+      font-family: var(--font-body); font-size: 13px; font-weight: 500;
+      padding: 7px 18px; border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer; transition: all .2s;
+      background: transparent; color: var(--muted);
+    }
+    .nav-btn:hover { color: var(--text); border-color: var(--border); }
+    .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .status-bar {
+      font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+
+    main { padding: 48px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── Pages ── */
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn .35s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ── Section header ── */
+    .section-header {
+      margin-bottom: 36px;
+    }
+    .section-tag {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--accent); letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-family: var(--font-head); font-size: 36px; font-weight: 800;
+      line-height: 1.1; letter-spacing: -1px;
+    }
+    .section-sub { color: var(--muted); font-size: 14px; margin-top: 8px; }
+
+    /* ── Product Grid ── */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: all .25s;
+      cursor: pointer;
+    }
+    .product-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow: 0 16px 40px rgba(108,99,255,.15);
+    }
+    .product-card.out-of-stock { opacity: .55; pointer-events: none; }
+
+    .product-thumb {
+      height: 160px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 56px;
+      background: var(--surface2);
+      position: relative;
+    }
+    .sku-badge {
+      position: absolute; top: 12px; right: 12px;
+      font-family: var(--font-mono); font-size: 10px;
+      padding: 3px 8px; border-radius: 6px;
+      background: rgba(108,99,255,.2); color: var(--accent);
+      border: 1px solid rgba(108,99,255,.3);
+    }
+
+    .product-body { padding: 20px; }
+    .product-name {
+      font-family: var(--font-head); font-size: 17px; font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .product-cat { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+    .product-price {
+      font-family: var(--font-mono); font-size: 22px; font-weight: 500;
+      color: var(--green); margin-bottom: 14px;
+    }
+
+    /* Warehouse stock pills */
+    .stock-section { margin-bottom: 16px; }
+    .stock-label { font-size: 11px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .warehouse-list { display: flex; flex-direction: column; gap: 6px; }
+    .warehouse-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border-radius: 8px; padding: 8px 12px;
+    }
+    .wh-name { font-size: 12px; font-weight: 500; }
+    .wh-stock { display: flex; align-items: center; gap: 8px; }
+    .stock-pill {
+      font-family: var(--font-mono); font-size: 11px;
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .stock-pill.available { background: rgba(0,230,160,.12); color: var(--green); border: 1px solid rgba(0,230,160,.25); }
+    .stock-pill.reserved { background: rgba(255,209,102,.12); color: var(--yellow); border: 1px solid rgba(255,209,102,.25); }
+    .stock-pill.low { background: rgba(255,77,109,.12); color: var(--danger); border: 1px solid rgba(255,77,109,.25); }
+
+    .reserve-btn {
+      width: 100%; padding: 11px;
+      border-radius: 10px; border: none;
+      background: var(--accent); color: #fff;
+      font-family: var(--font-head); font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: all .2s;
+      letter-spacing: .3px;
+    }
+    .reserve-btn:hover { background: #7c74ff; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(108,99,255,.35); }
+    .reserve-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Reservation Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.75); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; animation: fadeIn .2s ease; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px; width: 520px; max-width: 95vw;
+      padding: 36px; position: relative;
+      animation: slideUp .3s ease;
+    }
+    @keyframes slideUp { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+    .modal-close {
+      position: absolute; top: 20px; right: 20px;
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .modal-close:hover { color: var(--text); border-color: var(--accent); }
+
+    .modal-title {
+      font-family: var(--font-head); font-size: 22px; font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+    .form-row { margin-bottom: 16px; }
+    .form-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; display: block; }
+    .form-select, .form-input {
+      width: 100%; padding: 10px 14px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: var(--font-body); font-size: 14px;
+      outline: none; transition: border-color .2s;
+      appearance: none;
+    }
+    .form-select:focus, .form-input:focus { border-color: var(--accent); }
+    .form-select option { background: var(--surface2); }
+
+    .qty-row {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .qty-btn {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s; flex-shrink: 0;
+    }
+    .qty-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .qty-display {
+      font-family: var(--font-mono); font-size: 20px; font-weight: 500;
+      min-width: 40px; text-align: center;
+    }
+
+    .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+    .btn-primary {
+      flex: 1; padding: 13px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 10px;
+      font-family: var(--font-head); font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-primary:hover { background: #7c74ff; }
+    .btn-secondary {
+      padding: 13px 20px;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 10px;
+      font-family: var(--font-body); font-size: 14px;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+
+    /* ── Reservation Detail Page ── */
+    .reservation-layout {
+      display: grid; grid-template-columns: 1fr 360px; gap: 28px;
+      align-items: start;
+    }
+
+    .res-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 32px;
+    }
+
+    .countdown-ring {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 36px 0;
+    }
+    .ring-container { position: relative; width: 160px; height: 160px; }
+    .ring-svg { width: 160px; height: 160px; transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: var(--surface2); stroke-width: 8; }
+    .ring-fill {
+      fill: none; stroke: var(--green); stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 440; stroke-dashoffset: 0;
+      transition: stroke-dashoffset .9s linear, stroke .5s;
+    }
+    .ring-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .ring-time {
+      font-family: var(--font-mono); font-size: 28px; font-weight: 500;
+    }
+    .ring-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .res-meta { margin-top: 28px; }
+    .meta-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .meta-row:last-child { border-bottom: none; }
+    .meta-key { font-size: 13px; color: var(--muted); }
+    .meta-val { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .status-badge.pending { background: rgba(255,209,102,.15); color: var(--yellow); border: 1px solid rgba(255,209,102,.3); }
+    .status-badge.confirmed { background: rgba(0,230,160,.15); color: var(--green); border: 1px solid rgba(0,230,160,.3); }
+    .status-badge.released { background: rgba(255,77,109,.15); color: var(--danger); border: 1px solid rgba(255,77,109,.3); }
+    .status-badge.expired { background: rgba(112,112,160,.15); color: var(--muted); border: 1px solid rgba(112,112,160,.3); }
+
+    .confirm-btn {
+      width: 100%; padding: 15px;
+      background: var(--green); color: #001a12;
+      border: none; border-radius: 12px;
+      font-family: var(--font-head); font-size: 16px; font-weight: 800;
+      cursor: pointer; transition: all .2s; margin-bottom: 10px;
+    }
+    .confirm-btn:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,230,160,.3); }
+    .confirm-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .cancel-btn {
+      width: 100%; padding: 13px;
+      background: transparent; color: var(--danger);
+      border: 1px solid rgba(255,77,109,.35); border-radius: 12px;
+      font-family: var(--font-body); font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all .2s;
+    }
+    .cancel-btn:hover { background: rgba(255,77,109,.08); border-color: var(--danger); }
+    .cancel-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Reservations list ── */
+    .res-table {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .res-table-head {
+      display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 80px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .res-row {
+      display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 80px;
+      padding: 16px 24px; align-items: center;
+      border-bottom: 1px solid var(--border);
+      transition: background .15s; cursor: pointer;
+    }
+    .res-row:last-child { border-bottom: none; }
+    .res-row:hover { background: var(--surface2); }
+    .res-row .product-name { font-size: 14px; font-weight: 600; }
+    .res-row .product-cat { font-size: 12px; color: var(--muted); }
+    .col-mono { font-family: var(--font-mono); font-size: 13px; }
+    .view-link {
+      font-size: 12px; color: var(--accent);
+      padding: 5px 10px; border: 1px solid rgba(108,99,255,.3);
+      border-radius: 6px; text-align: center; white-space: nowrap;
+    }
+
+    /* ── Toast ── */
+    #toast-container {
+      position: fixed; bottom: 32px; right: 32px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+    }
+    .toast {
+      min-width: 280px; padding: 14px 20px;
+      background: var(--surface2); border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 14px; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      display: flex; align-items: center; gap: 10px;
+      animation: toastIn .3s ease;
+      pointer-events: auto;
+    }
+    @keyframes toastIn { from { transform: translateX(60px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.error { border-left: 3px solid var(--danger); }
+    .toast.warn { border-left: 3px solid var(--yellow); }
+    .toast-icon { font-size: 18px; }
+
+    /* ── Warehouses page ── */
+    .wh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .wh-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px;
+    }
+    .wh-icon { font-size: 36px; margin-bottom: 14px; }
+    .wh-card-name { font-family: var(--font-head); font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .wh-card-loc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .wh-stat { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .wh-stat-key { font-size: 12px; color: var(--muted); }
+    .wh-stat-val { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+
+    /* ── Expiry result ── */
+    .expiry-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 32px; text-align: center;
+    }
+    .result-icon { font-size: 64px; margin-bottom: 16px; }
+    .result-title { font-family: var(--font-head); font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+    .result-sub { color: var(--muted); margin-bottom: 28px; }
+
+    /* ── Utility ── */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+    .empty-state { text-align: center; padding: 64px 0; color: var(--muted); }
+    .empty-icon { font-size: 48px; margin-bottom: 14px; }
+    .empty-text { font-size: 15px; }
+
+    @media (max-width: 900px) {
+      header { padding: 14px 20px; }
+      main { padding: 24px 20px; }
+      .reservation-layout { grid-template-columns: 1fr; }
+      .res-table-head, .res-row { grid-template-columns: 2fr 1fr 1fr 60px; }
+      .col-wh, .col-qty { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Allo<span style="color:var(--accent)">.</span>inventory
+    </div>
+    <nav>
+      <button class="nav-btn active" onclick="showPage('products')">Products</button>
+      <button class="nav-btn" onclick="showPage('reservations')">Reservations</button>
+      <button class="nav-btn" onclick="showPage('warehouses')">Warehouses</button>
+    </nav>
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <span id="status-text">System live</span>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+    <!-- PRODUCTS PAGE -->
+    <div class="page active" id="page-products">
+      <div class="section-header">
+        <div class="section-tag">// inventory</div>
+        <div class="section-title">Product Catalog</div>
+        <div class="section-sub">Real-time available stock across all warehouses.</div>
+      </div>
+      <div class="products-grid" id="products-grid"></div>
+    </div>
+
+    <!-- RESERVATIONS PAGE -->
+    <div class="page" id="page-reservations">
+      <div class="section-header">
+        <div class="section-tag">// reservations</div>
+        <div class="section-title">All Reservations</div>
+        <div class="section-sub">Live reservation ledger. Click a row to manage.</div>
+      </div>
+      <div class="res-table" id="reservations-table">
+        <div class="res-table-head">
+          <div>Product</div>
+          <div class="col-wh">Warehouse</div>
+          <div class="col-qty">Units</div>
+          <div>Status</div>
+          <div>Expires</div>
+          <div></div>
+        </div>
+        <div id="reservations-list"></div>
+      </div>
+    </div>
+
+    <!-- WAREHOUSES PAGE -->
+    <div class="page" id="page-warehouses">
+      <div class="section-header">
+        <div class="section-tag">// logistics</div>
+        <div class="section-title">Warehouses</div>
+        <div class="section-sub">Fulfilment centres and their current capacity.</div>
+      </div>
+      <div class="wh-grid" id="warehouses-grid"></div>
+    </div>
+
+    <!-- RESERVATION DETAIL PAGE -->
+    <div class="page" id="page-detail">
+      <div class="section-header">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+          <button onclick="showPage('reservations')" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;">← Back</button>
+          <div class="section-tag" style="margin:0">// reservation detail</div>
+        </div>
+        <div class="section-title" id="detail-title">Reservation</div>
+      </div>
+      <div class="reservation-layout">
+        <!-- Left: product info -->
+        <div>
+          <div class="res-card" id="detail-product-card"></div>
+        </div>
+        <!-- Right: timer + actions -->
+        <div>
+          <div class="res-card">
+            <div class="countdown-ring">
+              <div class="ring-container">
+                <svg class="ring-svg" viewBox="0 0 160 160">
+                  <circle class="ring-bg" cx="80" cy="80" r="70"/>
+                  <circle class="ring-fill" id="ring-fill" cx="80" cy="80" r="70"/>
+                </svg>
+                <div class="ring-center">
+                  <div class="ring-time" id="countdown-display">10:00</div>
+                  <div class="ring-label">remaining</div>
+                </div>
+              </div>
+            </div>
+            <button class="confirm-btn" id="confirm-btn" onclick="confirmReservation()">✓ Confirm Purchase</button>
+            <button class="cancel-btn" id="cancel-btn" onclick="cancelReservation()">✕ Cancel Reservation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- RESERVE MODAL -->
+<div class="modal-overlay" id="reserve-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-title">Reserve Units</div>
+    <div class="modal-sub">Holds stock for 10 minutes while payment processes.</div>
+    <div class="form-row">
+      <label class="form-label">Warehouse</label>
+      <select class="form-select" id="modal-warehouse"></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Quantity</label>
+      <div class="qty-row">
+        <button class="qty-btn" onclick="changeQty(-1)">−</button>
+        <div class="qty-display" id="qty-display">1</div>
+        <button class="qty-btn" onclick="changeQty(1)">+</button>
+        <div id="qty-available" style="font-size:12px;color:var(--muted);margin-left:8px;"></div>
+      </div>
+    </div>
+    <div class="form-row" id="idempotency-row">
+      <label class="form-label">Idempotency Key <span style="color:var(--muted);font-size:10px;">(optional – for retries)</span></label>
+      <input class="form-input" id="idempotency-key" placeholder="Auto-generated if blank" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitReservation()">Reserve Now →</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+// ─── DATA STORE ──────────────────────────────────────────────────────────────
+
+const WAREHOUSES = [
+  { id:'wh1', name:'Mumbai Central', location:'Mumbai, MH', emoji:'🏭', capacity:5000 },
+  { id:'wh2', name:'Delhi North',    location:'Delhi, DL',  emoji:'🏗️', capacity:3500 },
+  { id:'wh3', name:'Bangalore Tech', location:'Bangalore, KA', emoji:'🏢', capacity:4200 },
+  { id:'wh4', name:'Chennai Port',   location:'Chennai, TN', emoji:'⚓', capacity:2800 },
+];
+
+const PRODUCTS = [
+  { id:'p1', sku:'ALO-MED-001', name:'Testosterone Booster', category:'Supplements', price:2499, emoji:'💊',
+    stock: { wh1:{ total:20, reserved:3 }, wh2:{ total:15, reserved:8 }, wh3:{ total:8, reserved:2 }, wh4:{ total:5, reserved:5 } } },
+  { id:'p2', sku:'ALO-MED-002', name:'Vitamin D3 Complex',   category:'Vitamins',     price:899,  emoji:'🌞',
+    stock: { wh1:{ total:50, reserved:10 }, wh2:{ total:30, reserved:5 }, wh3:{ total:25, reserved:0 }, wh4:{ total:40, reserved:12 } } },
+  { id:'p3', sku:'ALO-DIG-003', name:'Probiotic Blend',      category:'Gut Health',   price:1599, emoji:'🦠',
+    stock: { wh1:{ total:1, reserved:0 }, wh2:{ total:0, reserved:0 }, wh3:{ total:3, reserved:1 }, wh4:{ total:0, reserved:0 } } },
+  { id:'p4', sku:'ALO-SLP-004', name:'Sleep Support Formula',category:'Wellness',     price:1299, emoji:'🌙',
+    stock: { wh1:{ total:35, reserved:5 }, wh2:{ total:20, reserved:3 }, wh3:{ total:0, reserved:0 }, wh4:{ total:12, reserved:2 } } },
+  { id:'p5', sku:'ALO-PRO-005', name:'Whey Protein Isolate', category:'Fitness',      price:3499, emoji:'💪',
+    stock: { wh1:{ total:0, reserved:0 }, wh2:{ total:0, reserved:0 }, wh3:{ total:0, reserved:0 }, wh4:{ total:0, reserved:0 } } },
+  { id:'p6', sku:'ALO-HAI-006', name:'Hair Growth Serum',    category:'Hair & Skin',  price:1799, emoji:'💆',
+    stock: { wh1:{ total:18, reserved:2 }, wh2:{ total:9, reserved:9 }, wh3:{ total:22, reserved:4 }, wh4:{ total:6, reserved:1 } } },
+];
+
+// Reservations state
+let reservations = [
+  { id:'res_001', productId:'p1', warehouseId:'wh1', quantity:2, status:'pending',
+    createdAt: Date.now() - 180000, expiresAt: Date.now() + 420000 },
+  { id:'res_002', productId:'p2', warehouseId:'wh3', quantity:5, status:'confirmed',
+    createdAt: Date.now() - 600000, expiresAt: Date.now() - 100 },
+];
+
+const RESERVATION_TTL = 10 * 60 * 1000; // 10 min in ms
+let idempotencyCache = {};
+let activeProductId = null;
+let selectedQty = 1;
+let detailReservationId = null;
+let countdownInterval = null;
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function getAvailable(product, whId) {
+  const s = product.stock[whId];
+  return s ? Math.max(0, s.total - s.reserved) : 0;
+}
+
+function totalAvailable(product) {
+  return Object.keys(product.stock).reduce((sum, wid) => sum + getAvailable(product, wid), 0);
+}
+
+function fmt(ms) {
+  if (ms <= 0) return '00:00';
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function relativeTime(ts) {
+  const d = Math.floor((Date.now() - ts) / 1000);
+  if (d < 60) return `${d}s ago`;
+  if (d < 3600) return `${Math.floor(d/60)}m ago`;
+  return `${Math.floor(d/3600)}h ago`;
+}
+
+function genId() { return 'res_' + Math.random().toString(36).slice(2,9); }
+function genIk()  { return 'ik_' + Math.random().toString(36).slice(2,13); }
+
+// ─── EXPIRY SWEEPER (lazy on-read + interval) ─────────────────────────────
+
+function sweepExpired() {
+  reservations.forEach(r => {
+    if (r.status === 'pending' && Date.now() > r.expiresAt) {
+      r.status = 'expired';
+      // release stock back
+      const product = PRODUCTS.find(p => p.id === r.productId);
+      if (product && product.stock[r.warehouseId]) {
+        product.stock[r.warehouseId].reserved = Math.max(0,
+          product.stock[r.warehouseId].reserved - r.quantity);
+      }
+    }
+  });
+}
+
+setInterval(() => {
+  sweepExpired();
+  renderAll();
+}, 5000);
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+
+function toast(msg, type='success') {
+  const icons = { success:'✅', error:'❌', warn:'⚠️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+// ─── PAGES ───────────────────────────────────────────────────────────────────
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const map = { products:0, reservations:1, warehouses:2, detail:1 };
+  const navBtns = document.querySelectorAll('.nav-btn');
+  if (map[name] !== undefined) navBtns[map[name]]?.classList.add('active');
+  sweepExpired();
+  renderAll();
+}
+
+// ─── RENDER PRODUCTS ─────────────────────────────────────────────────────────
+
+function renderProducts() {
+  const grid = document.getElementById('products-grid');
+  grid.innerHTML = PRODUCTS.map(p => {
+    const avail = totalAvailable(p);
+    const isOOS = avail === 0;
+    return `
+    <div class="product-card ${isOOS ? 'out-of-stock' : ''}" onclick="${isOOS ? '' : `openModal('${p.id}')`}">
+      <div class="product-thumb">
+        ${p.emoji}
+        <div class="sku-badge">${p.sku}</div>
+      </div>
+      <div class="product-body">
+        <div class="product-name">${p.name}</div>
+        <div class="product-cat">${p.category}</div>
+        <div class="product-price">₹${p.price.toLocaleString()}</div>
+        <div class="stock-section">
+          <div class="stock-label">Warehouse Stock</div>
+          <div class="warehouse-list">
+            ${WAREHOUSES.map(w => {
+              const av = getAvailable(p, w.id);
+              const res = p.stock[w.id]?.reserved || 0;
+              const cls = av === 0 ? 'low' : av <= 3 ? 'low' : 'available';
+              return `<div class="warehouse-row">
+                <div class="wh-name">${w.name}</div>
+                <div class="wh-stock">
+                  <span class="stock-pill ${cls}">${av} avail</span>
+                  ${res > 0 ? `<span class="stock-pill reserved">${res} held</span>` : ''}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+        <button class="reserve-btn" ${isOOS ? 'disabled' : `onclick="openModal('${p.id}');event.stopPropagation()"`}>
+          ${isOOS ? '✕ Out of Stock' : '⚡ Reserve'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── RENDER RESERVATIONS ─────────────────────────────────────────────────────
+
+function renderReservations() {
+  const list = document.getElementById('reservations-list');
+  if (reservations.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No reservations yet. Reserve a product to get started.</div></div>`;
+    return;
+  }
+  list.innerHTML = [...reservations].reverse().map(r => {
+    const product = PRODUCTS.find(p => p.id === r.productId);
+    const wh = WAREHOUSES.find(w => w.id === r.warehouseId);
+    const remaining = r.expiresAt - Date.now();
+    const statusBadge = `<span class="status-badge ${r.status}">${r.status}</span>`;
+    const exp = r.status === 'pending'
+      ? `<span style="font-family:var(--font-mono);font-size:12px;color:${remaining < 60000 ? 'var(--danger)' : 'var(--yellow)'}">${fmt(remaining)}</span>`
+      : `<span style="font-size:12px;color:var(--muted)">—</span>`;
+    return `<div class="res-row" onclick="openDetail('${r.id}')">
+      <div>
+        <div class="product-name">${product?.name || '?'}</div>
+        <div class="product-cat">${product?.sku || ''}</div>
+      </div>
+      <div class="col-wh col-mono" style="font-size:12px;">${wh?.name || '?'}</div>
+      <div class="col-qty col-mono">${r.quantity} units</div>
+      <div>${statusBadge}</div>
+      <div>${exp}</div>
+      <div><div class="view-link">View →</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ─── RENDER WAREHOUSES ────────────────────────────────────────────────────────
+
+function renderWarehouses() {
+  const grid = document.getElementById('warehouses-grid');
+  grid.innerHTML = WAREHOUSES.map(w => {
+    const totalUnits = PRODUCTS.reduce((s, p) => s + (p.stock[w.id]?.total || 0), 0);
+    const reservedUnits = PRODUCTS.reduce((s, p) => s + (p.stock[w.id]?.reserved || 0), 0);
+    const availUnits = totalUnits - reservedUnits;
+    return `<div class="wh-card">
+      <div class="wh-icon">${w.emoji}</div>
+      <div class="wh-card-name">${w.name}</div>
+      <div class="wh-card-loc">📍 ${w.location}</div>
+      <div class="wh-stat"><span class="wh-stat-key">Total Units</span><span class="wh-stat-val">${totalUnits}</span></div>
+      <div class="wh-stat"><span class="wh-stat-key">Available</span><span class="wh-stat-val" style="color:var(--green)">${availUnits}</span></div>
+      <div class="wh-stat"><span class="wh-stat-key">Reserved</span><span class="wh-stat-val" style="color:var(--yellow)">${reservedUnits}</span></div>
+      <div class="wh-stat"><span class="wh-stat-key">Capacity</span><span class="wh-stat-val">${w.capacity.toLocaleString()}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderAll() {
+  renderProducts();
+  renderReservations();
+  renderWarehouses();
+  // update detail if open
+  if (detailReservationId) renderDetail(detailReservationId);
+}
+
+// ─── MODAL ───────────────────────────────────────────────────────────────────
+
+function openModal(productId) {
+  activeProductId = productId;
+  selectedQty = 1;
+  const product = PRODUCTS.find(p => p.id === productId);
+  document.getElementById('qty-display').textContent = '1';
+  document.getElementById('idempotency-key').value = genIk();
+
+  // Populate warehouse select (only warehouses with available stock)
+  const sel = document.getElementById('modal-warehouse');
+  sel.innerHTML = WAREHOUSES
+    .filter(w => getAvailable(product, w.id) > 0)
+    .map(w => `<option value="${w.id}">${w.name} (${getAvailable(product, w.id)} avail)</option>`)
+    .join('');
+
+  updateQtyAvail();
+  sel.onchange = updateQtyAvail;
+  document.getElementById('reserve-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('reserve-modal').classList.remove('open');
+  activeProductId = null;
+}
+
+function updateQtyAvail() {
+  const product = PRODUCTS.find(p => p.id === activeProductId);
+  const whId = document.getElementById('modal-warehouse').value;
+  const av = getAvailable(product, whId);
+  document.getElementById('qty-available').textContent = `max ${av}`;
+  if (selectedQty > av) {
+    selectedQty = Math.max(1, av);
+    document.getElementById('qty-display').textContent = selectedQty;
+  }
+}
+
+function changeQty(delta) {
+  const product = PRODUCTS.find(p => p.id === activeProductId);
+  const whId = document.getElementById('modal-warehouse').value;
+  const av = getAvailable(product, whId);
+  selectedQty = Math.max(1, Math.min(av, selectedQty + delta));
+  document.getElementById('qty-display').textContent = selectedQty;
+}
+
+// ─── RESERVE (with concurrency guard) ────────────────────────────────────────
+
+function submitReservation() {
+  sweepExpired();
+  const product = PRODUCTS.find(p => p.id === activeProductId);
+  const whId = document.getElementById('modal-warehouse').value;
+  const qty = selectedQty;
+  const ikKey = document.getElementById('idempotency-key').value.trim() || genIk();
+
+  // Idempotency check
+  if (idempotencyCache[ikKey]) {
+    toast('Duplicate request — returning original response.', 'warn');
+    closeModal();
+    showPage('reservations');
+    return;
+  }
+
+  // ATOMIC check: available stock ≥ qty (simulates SELECT FOR UPDATE)
+  const av = getAvailable(product, whId);
+  if (av < qty) {
+    toast(`409 Conflict — only ${av} unit(s) available. Reservation failed.`, 'error');
+    return;
+  }
+
+  // Decrement reserved (atomic in real DB via SELECT FOR UPDATE / advisory lock)
+  product.stock[whId].reserved += qty;
+
+  const resId = genId();
+  const now = Date.now();
+  const newRes = {
+    id: resId,
+    productId: product.id,
+    warehouseId: whId,
+    quantity: qty,
+    status: 'pending',
+    createdAt: now,
+    expiresAt: now + RESERVATION_TTL,
+    idempotencyKey: ikKey,
+  };
+  reservations.push(newRes);
+  idempotencyCache[ikKey] = newRes;
+
+  toast(`Reserved ${qty}× ${product.name} for 10 minutes ✓`, 'success');
+  closeModal();
+  renderAll();
+  openDetail(resId);
+}
+
+// ─── DETAIL PAGE ─────────────────────────────────────────────────────────────
+
+function openDetail(resId) {
+  detailReservationId = resId;
+  showPage('detail');
+  renderDetail(resId);
+  startCountdown(resId);
+}
+
+function renderDetail(resId) {
+  const res = reservations.find(r => r.id === resId);
+  if (!res) return;
+  const product = PRODUCTS.find(p => p.id === res.productId);
+  const wh = WAREHOUSES.find(w => w.id === res.warehouseId);
+
+  document.getElementById('detail-title').textContent = `Reservation #${res.id}`;
+
+  const card = document.getElementById('detail-product-card');
+  card.innerHTML = `
+    <div style="font-size:64px;text-align:center;margin-bottom:20px;padding:24px;background:var(--surface2);border-radius:12px;">${product.emoji}</div>
+    <div class="product-name" style="font-size:20px;margin-bottom:4px;">${product.name}</div>
+    <div class="product-cat" style="margin-bottom:20px;">${product.category} · ${product.sku}</div>
+    <div class="divider"></div>
+    <div class="res-meta">
+      <div class="meta-row"><span class="meta-key">Reservation ID</span><span class="meta-val" style="color:var(--accent)">${res.id}</span></div>
+      <div class="meta-row"><span class="meta-key">Status</span><div><span class="status-badge ${res.status}">${res.status}</span></div></div>
+      <div class="meta-row"><span class="meta-key">Warehouse</span><span class="meta-val">${wh.name}</span></div>
+      <div class="meta-row"><span class="meta-key">Location</span><span class="meta-val">${wh.location}</span></div>
+      <div class="meta-row"><span class="meta-key">Quantity</span><span class="meta-val">${res.quantity} units</span></div>
+      <div class="meta-row"><span class="meta-key">Unit Price</span><span class="meta-val">₹${product.price.toLocaleString()}</span></div>
+      <div class="meta-row"><span class="meta-key">Total</span><span class="meta-val" style="color:var(--green)">₹${(product.price * res.quantity).toLocaleString()}</span></div>
+      <div class="meta-row"><span class="meta-key">Created</span><span class="meta-val">${relativeTime(res.createdAt)}</span></div>
+      ${res.idempotencyKey ? `<div class="meta-row"><span class="meta-key">Idempotency Key</span><span class="meta-val" style="font-size:11px;color:var(--muted)">${res.idempotencyKey}</span></div>` : ''}
+    </div>`;
+
+  // Enable/disable buttons
+  const isDone = res.status !== 'pending';
+  const isExpired = res.status === 'expired' || (res.status === 'pending' && Date.now() > res.expiresAt);
+  document.getElementById('confirm-btn').disabled = isDone;
+  document.getElementById('cancel-btn').disabled = isDone;
+  if (res.status === 'confirmed') {
+    document.getElementById('confirm-btn').textContent = '✓ Purchase Confirmed';
+    document.getElementById('confirm-btn').style.background = 'var(--surface2)';
+    document.getElementById('confirm-btn').style.color = 'var(--green)';
+  } else if (isExpired) {
+    document.getElementById('confirm-btn').textContent = '⏰ Reservation Expired';
+  } else {
+    document.getElementById('confirm-btn').textContent = '✓ Confirm Purchase';
+    document.getElementById('confirm-btn').style.background = 'var(--green)';
+    document.getElementById('confirm-btn').style.color = '#001a12';
+  }
+}
+
+function startCountdown(resId) {
+  clearInterval(countdownInterval);
+  const res = reservations.find(r => r.id === resId);
+  const totalMs = RESERVATION_TTL;
+  const ring = document.getElementById('ring-fill');
+  const circumference = 2 * Math.PI * 70; // r=70
+
+  function tick() {
+    sweepExpired();
+    const r = reservations.find(r => r.id === resId);
+    if (!r) { clearInterval(countdownInterval); return; }
+    const remaining = r.expiresAt - Date.now();
+    const display = document.getElementById('countdown-display');
+
+    if (r.status !== 'pending' || remaining <= 0) {
+      clearInterval(countdownInterval);
+      display.textContent = r.status === 'confirmed' ? 'DONE' : '00:00';
+      ring.style.strokeDashoffset = circumference;
+      ring.style.stroke = r.status === 'confirmed' ? 'var(--green)' : 'var(--danger)';
+      renderDetail(resId);
+      return;
+    }
+
+    display.textContent = fmt(remaining);
+    const pct = Math.max(0, remaining / totalMs);
+    ring.style.strokeDashoffset = circumference * (1 - pct);
+    ring.style.stroke = remaining < 60000 ? 'var(--danger)' : remaining < 180000 ? 'var(--yellow)' : 'var(--green)';
+  }
+
+  tick();
+  countdownInterval = setInterval(tick, 500);
+}
+
+// ─── CONFIRM / CANCEL ────────────────────────────────────────────────────────
+
+function confirmReservation() {
+  sweepExpired();
+  const res = reservations.find(r => r.id === detailReservationId);
+  if (!res) return;
+  if (res.status === 'expired' || Date.now() > res.expiresAt) {
+    toast('410 Gone — reservation expired. Units released.', 'error');
+    renderDetail(detailReservationId);
+    return;
+  }
+  if (res.status !== 'pending') return;
+
+  // Confirm: decrement total stock permanently (reserved → sold)
+  const product = PRODUCTS.find(p => p.id === res.productId);
+  product.stock[res.warehouseId].total -= res.quantity;
+  product.stock[res.warehouseId].reserved -= res.quantity;
+  res.status = 'confirmed';
+
+  toast(`Purchase confirmed! ${product.name} ×${res.quantity} 🎉`, 'success');
+  renderAll();
+  renderDetail(detailReservationId);
+}
+
+function cancelReservation() {
+  const res = reservations.find(r => r.id === detailReservationId);
+  if (!res || res.status !== 'pending') return;
+
+  const product = PRODUCTS.find(p => p.id === res.productId);
+  product.stock[res.warehouseId].reserved -= res.quantity;
+  res.status = 'released';
+
+  toast(`Reservation released. Units back in stock.`, 'warn');
+  renderAll();
+  renderDetail(detailReservationId);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+sweepExpired();
+renderAll();
+</script>
+</body>
+</html>
